@@ -1,7 +1,8 @@
 #include <TinyGPSPlus.h>
 #include <SoftwareSerial.h>
+//#include "MPU.h"
 
-static const int RXPin = 23, TXPin = 22;
+static const int RXPin = 23, TXPin = 19;
 static const uint32_t GPSBaud = 9600;
 
 
@@ -12,12 +13,15 @@ TinyGPSPlus gps;
 #define BAUD_RATE 9600
 EspSoftwareSerial::UART ss;
 
+//#define MPU6050_SDA 22
+//#define MPU6050_SCL 21
 
 void setup()
 {
   Serial.begin(115200);
   ss.begin(BAUD_RATE, EspSoftwareSerial::SWSERIAL_8N1, RXPin, TXPin);
-
+  
+   //setupMPU();
     
 }
 
@@ -153,7 +157,7 @@ void loop()
 
   if(uiInByte == 'g')
   {
-     
+      
      dtostrf( fLat, 3, 8, strLat);
      dtostrf( fLon, 3, 8, strLon);
      dtostrf( fMPS, 3, 2, strMPS);
