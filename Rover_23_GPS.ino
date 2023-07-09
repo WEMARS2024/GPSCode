@@ -28,7 +28,7 @@ unsigned int uiSatNumber;
 
 float fLat;
 float fLon;
-float fKPH;
+float fMPS;
 float fDegree;
 float fAlt;
 float fHDOP;
@@ -38,7 +38,7 @@ char strGPS[100];
 char strValid[8]; 
 char strLat[15];
 char strLon[15];
-char strKPH[6];
+char strMPS[6];
 char strDegree[6];
 char strAlt[10];
 char strHDOP[6];
@@ -105,19 +105,19 @@ void loop()
   if (gps.speed.isValid())
   {
     strValid[3] = '?';
-    fKPH = gps.speed.value();
+    fMPS = gps.speed.mps();
   }
   
   if (gps.course.isValid())
   {
     strValid[4] = '?';
-    fDegree = gps.course.value();
+    fDegree = gps.course.deg();
   }
   
   if (gps.altitude.isValid())
   {
     strValid[5] = '?';
-    fAlt = gps.altitude.value();
+    fAlt = gps.altitude.meters();
   }
   
   if (gps.satellites.isValid())
@@ -151,72 +151,19 @@ void loop()
       Serial.println(F("WARNING: No GPS data.  Check wiring."));
 
 
-  if(uiInByte == 'G')
+  if(uiInByte == 'g')
   {
      
      dtostrf( fLat, 3, 8, strLat);
      dtostrf( fLon, 3, 8, strLon);
-     dtostrf( fKPH, 3, 2, strKPH);
+     dtostrf( fMPS, 3, 2, strMPS);
      dtostrf( fDegree, 3, 2, strDegree);
      dtostrf( fAlt, 5, 2, strAlt);
      dtostrf( fHDOP, 2, 2, strHDOP);
 
-    sprintf(strGPS,"%s,%i,%s,%s,%i,%d,%d,%d,%i,%d/n",strValid,uiTime,strLat,strLon,uiDate,strKPH,strDegree,strAlt,uiSatNumber,strHDOP);
-    Serial.println(strGPS);
+    sprintf(strGPS,"%s,%i,%s,%s,%i,%s,%s,%s,%i,%s\n",strValid,uiTime,strLat,strLon,uiDate,strMPS,strDegree,strAlt,uiSatNumber,strHDOP);
+    Serial.print(strGPS);
+    strcpy(strGPS,"");
   }
-
-  // if(Updated && 0x1)
-  // { 
-  //   Updated &= 0xFE;
-  //   Serial.println("");
-  //   Serial.print(F("Time = "));
-  //   Serial.print(gps.time.value());
-  // }
-  // if(Updated && 0x2)
-  // {
-  //   Updated &= 0xFD;
-  //   Serial.print(F(" ,Lat = "));
-  //   Serial.print(gps.location.lat(), 8);
-  //   Serial.print(F(" ,Long = "));
-  //   Serial.print(gps.location.lng(), 8);
-  // }
-  // if(Updated && 0x4)
-  // { 
-  //   Updated &= 0xFB;
-  //   Serial.print(F(" ,Date = "));
-  //   Serial.print(gps.date.value());
-  // }
-  // if(Updated && 0x8)
-  // {
-  //   Updated &= 0xF7;
-  //   Serial.print(F(" ,km/h = "));
-  //   Serial.print(gps.speed.kmph());
-  // }
-
-  // if(Updated && 0x10)
-  // {
-  //   Updated &= 0xEF;
-  //   Serial.print(F(" ,Deg = "));
-  //   Serial.print(gps.course.deg());
-  // }
-
-  // if(Updated && 0x20)
-  // {
-  //   Updated &= 0xDF;
-  //   Serial.print(F(" ,Alt Meters = "));
-  //   Serial.print(gps.altitude.meters());
-  // }
-  // if(Updated && 0x40)
-  // {
-  //   Updated &= 0xBF;
-  //   Serial.print(F(" ,Sat = "));
-  //   Serial.print(gps.satellites.value());
-  // }
-  // if(Updated && 0x80)
-  // {
-  //   Updated &= 0x7F;
-  //   Serial.print(F(" ,hdop = "));
-  //   Serial.print(gps.hdop.hdop());
-  // }
  
 }
