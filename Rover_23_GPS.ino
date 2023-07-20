@@ -1,3 +1,8 @@
+#include <CAN.h>
+#include <CAN_config.h>
+#include <ESP32CAN.h>
+#include <can_regdef.h>
+
 #include <TinyGPSPlus.h>
 #include <SoftwareSerial.h>
 #include <Adafruit_MPU6050.h>
