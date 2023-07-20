@@ -1,7 +1,9 @@
-#include <CAN.h>
-#include <CAN_config.h>
+
+#include "0_Core_Zero.h"
+
+#include <Arduino.h>
 #include <ESP32CAN.h>
-#include <can_regdef.h>
+#include <CAN_config.h>
 
 #include <TinyGPSPlus.h>
 #include <SoftwareSerial.h>
@@ -9,6 +11,19 @@
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 
+#define I2C_SDA 21
+#define I2C_SCL 20
+TwoWire I2Cax = TwoWire(0);
+
+
+//CAN Variables
+CAN_device_t CAN_cfg;               // CAN Config
+unsigned long previousMillis = 0;   // will store last time a CAN Message was send
+const int interval = 1000;          // interval at which send CAN Messages (milliseconds)
+const int rx_queue_size = 10;       // Receive Queue size
+
+
+//GPS/Acellreometers
 static const int RXPin = 23, TXPin = 19;
 static const uint32_t GPSBaud = 9600;
 
@@ -24,11 +39,16 @@ Adafruit_MPU6050 mpu;
 
 void setup()
 {
+
   Serial.begin(115200);
+
+  Core_ZEROInit();
+
+
   ss.begin(BAUD_RATE, EspSoftwareSerial::SWSERIAL_8N1, RXPin, TXPin);
   
    // Try to initialize!
-  if (!mpu.begin()) {
+  if (!mpu.begin(0x68, &I2Cax)) {
     Serial.println("Failed to find MPU6050 chip");
     while (1) {
       delay(10);
@@ -97,6 +117,14 @@ void setup()
 
   Serial.println("");
   delay(100);
+
+
+  CAN_cfg.speed = CAN_SPEED_125KBPS;
+  CAN_cfg.tx_pin_id = GPIO_NUM_21;
+  CAN_cfg.rx_pin_id = GPIO_NUM_22;
+  CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
+  // Init CAN Module
+  ESP32Can.CANInit();
     
 }
 
