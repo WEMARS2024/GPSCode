@@ -1,35 +1,42 @@
 /*
-Western Engineering base code
-2020 06 17
+WE MARS
+2023 07 24
   
 \Core 0 code
 
 
 */
 
+
 #ifndef CORE_ZERO_H
 #define CORE_ZERO_H 1
 
 
-#include "MyWEBserver.h"
-#include "BreakPoint.h"
-#include "WDT.h";
+#include <Arduino.h>
+#include <ESP32CAN.h>
+#include <CAN_config.h>
+
+CAN_device_t CAN_cfg;               // CAN Config
+CAN_frame_t rx_frame;
+CAN_frame_t tx_frame;
+unsigned long previousMillis = 0;   // will store last time a CAN Message was send
+const int interval = 1000;          // interval at which send CAN Messages (milliseconds)
+const int rx_queue_size = 10;       // Receive Queue size
 
 TaskHandle_t Core_Zero;
 
-const int CR0_ciMainTimer =  1000;
+const int CR0_ciMainTimer =  10000;
 
 unsigned char CR0_ucMainTimerCaseCore0;
 
-unsigned int uiTestCounter;
-
-uint32_t CR0_u32Now;
+uint32_t CR0_u32Now;  //for timing testing
 uint32_t CR0_u32Last;
-uint32_t CR0_u32Temp;
-uint32_t CR0_u32Avg;
+
 
 unsigned long CR0_ulPreviousMicrosCore0;
 unsigned long CR0_ulCurrentMicrosCore0;
+
+unsigned int CR0_uiTxFlags = 0;
 
 void Core_ZeroCode( void * pvParameters );
 
@@ -57,139 +64,97 @@ void Core_ZeroCode( void * pvParameters )
 
   //Core 0 Setup
   //-------------------------------------------------------------------------------------------
-   WSVR_BreakPointInit("DBON","CONT"); //Start contidions "HALT", "CONT", DBON", DBOF" 
-
-   WSVR_setupWEbServer();
-  
-   delay(1000);
-
-   
-   WDT_EnableFastWatchDogCore0();
-   
-   WDT_ResetCore0();
-   WDT_vfFastWDTWarningCore0[0] = 0;
-   WDT_vfFastWDTWarningCore0[1] = 0;
-   WDT_vfFastWDTWarningCore0[2] = 0;
-   WDT_vfFastWDTWarningCore0[3] = 0;
-   WDT_ResetCore0();
-   WDT_vfFastWDTWarningCore0[4] = 0;
-   WDT_vfFastWDTWarningCore0[5] = 0;
-   WDT_vfFastWDTWarningCore0[6] = 0;
-   WDT_vfFastWDTWarningCore0[7] = 0;
-   WDT_ResetCore0();
-   WDT_vfFastWDTWarningCore0[8] = 0;
-   WDT_vfFastWDTWarningCore0[9] = 0;
-   WDT_ResetCore0(); 
+  CAN_cfg.speed = CAN_SPEED_125KBPS;
+  CAN_cfg.tx_pin_id = GPIO_NUM_21;
+  CAN_cfg.rx_pin_id = GPIO_NUM_22;
+  CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
+  // Init CAN Module
+  ESP32Can.CANInit();
    
    
   //loop function for core 0
   //-------------------------------------------------------------------------------------------
   for(;;)
   {
+       unsigned long currentMillis = millis();
 
-       
-       CR0_ulCurrentMicrosCore0 = micros();
+      // Receive next CAN frame from queue
+      if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) == pdTRUE)
+       {
+
+        
+        switch(rx_frame.MsgID)
+        {
+          case 0:
+          {
+            CR0_uiTxFlags = 0;
+            break;
+          }
+          case 100://requesting GPS data
+          {
+            CR0_uiTxFlags |= 0x01; //Send GPS data
+            // if (rx_frame.FIR.B.RTR != CAN_RTR)
+            // {
+            //  for (int i = 0; i < rx_frame.FIR.B.DLC; i++) 
+            //   {
+            //     printf("0x%02X ", rx_frame.data.u8[i]);
+            //   }
+            //   printf("\n");
+            // }
+          break;
+          }
+          case 101:  //requesting IMU data 
+          {
+            CR0_uiTxFlags |= 0x02; //Send IMU data
+            // if (rx_frame.FIR.B.RTR != CAN_RTR)
+            // {
+            //  for (int i = 0; i < rx_frame.FIR.B.DLC; i++) 
+            //   {
+            //     printf("0x%02X ", rx_frame.data.u8[i]);
+            //   }
+            //   printf("\n");
+            // }
+          break;
+          }
+        }
+      }
+      
+      // Send CAN Message
+      CR0_ulCurrentMicrosCore0 = micros();
       if ((CR0_ulCurrentMicrosCore0 - CR0_ulPreviousMicrosCore0) >= CR0_ciMainTimer)
       {
         
-        WDT_ResetCore0();
-        WDT_ucCaseIndexCore0 = CR0_ucMainTimerCaseCore0;
-        vTaskDelay(1);
-
-    
-        CR0_ulPreviousMicrosCore0 = CR0_ulCurrentMicrosCore0;
         
-   
-        switch(CR0_ucMainTimerCaseCore0)  //full switch run through is 1mS
-        {
-          //###############################################################################
-          case 0: 
-          {
-           
-            CR0_ucMainTimerCaseCore0 = 1;
-            break;
-          }
-          //###############################################################################
-          case 1: //
-          {
-         
-            uiTestCounter = uiTestCounter + 1;
-            //Serial.println(uiTestCounter);
-            WSVR_BreakPoint(1);
-            CR0_ucMainTimerCaseCore0 = 2;
-          
-            break;
-          }
-          //###############################################################################
-          case 2: //web page control
-          {
-            asm volatile("esync; rsr %0,ccount":"=a" (CR0_u32Last)); // @ 240mHz clock each tick is ~4nS  
-            webSocket.loop();
-            asm volatile("esync; rsr %0,ccount":"=a" (CR0_u32Now));    
-           
-            CR0_ucMainTimerCaseCore0 = 3;
-            break;
-          }
-          //###############################################################################
-          case 3: 
-          {
-            
-            CR0_ucMainTimerCaseCore0 = 4;
-            break;
-          }
-          //###############################################################################
-          case 4:   ///warning exceed wdt time
-          {
-            WDT_CheckOperationTime();
-
-            
-            CR0_ucMainTimerCaseCore0 = 5;
-            break;
-          }
-          //###############################################################################
-          case 5: 
-          {
-         
-                  
-            CR0_ucMainTimerCaseCore0 = 6;
-            break;
-          }
-          //###############################################################################
-          case 6:
-          {
         
-          
-            CR0_ucMainTimerCaseCore0 = 7;
-            break;
-          }
-          //###############################################################################
-          case 7: 
-          {
-            
-            CR0_ucMainTimerCaseCore0 = 8;
-            break;
-          }
-          //###############################################################################
-          case 8: 
-          {
-           
-            CR0_ucMainTimerCaseCore0 = 9;
-            break;
-          }
-          //###############################################################################
-          case 9: 
-          {
-                       
+        ESP32Can.CANWriteFrame(&tx_frame);
        
-            CR0_ucMainTimerCaseCore0 = 0;
-           
-            break;
-          }
-      
-        }
-        
       }
+       
+     
+           // asm volatile("esync; rsr %0,ccount":"=a" (CR0_u32Last)); // @ 240mHz clock each tick is ~4nS  
+            
+          //  asm volatile("esync; rsr %0,ccount":"=a" (CR0_u32Now));    
+           
+          
+        
+      
   }
+}
+
+void LoadTxBuffer()
+{
+  tx_frame.FIR.B.FF = CAN_frame_std;
+  tx_frame.MsgID = uiID;
+  tx_frame.FIR.B.DLC = 8;
+  tx_frame.data.u8[0] = 0x09;
+  tx_frame.data.u8[1] = 0x0A;
+  tx_frame.data.u8[2] = 0x0B;
+  tx_frame.data.u8[3] = 0x0C;
+  tx_frame.data.u8[4] = 0x0D;
+  tx_frame.data.u8[5] = 0x0E;
+  tx_frame.data.u8[6] = 0x0F;
+  tx_frame.data.u8[7] = 0x010;
+
 }
 
 #endif

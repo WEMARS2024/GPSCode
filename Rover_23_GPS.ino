@@ -1,9 +1,6 @@
 
 #include "0_Core_Zero.h"
 
-#include <Arduino.h>
-#include <ESP32CAN.h>
-#include <CAN_config.h>
 
 #include <TinyGPSPlus.h>
 #include <SoftwareSerial.h>
@@ -11,8 +8,8 @@
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 
-#define I2C_SDA 21
-#define I2C_SCL 20
+#define I2C_SDA 5
+#define I2C_SCL 18
 TwoWire I2Cax = TwoWire(0);
 
 
@@ -280,19 +277,19 @@ void loop()
   if(uiInByte == 'g')
   {
      fXAccel = a.acceleration.x;
-     dtostrf( fXAccel, 4, 6, strXAccel);
+     dtostrf( fXAccel, 4, 4, strXAccel);
      fYAccel = a.acceleration.y;
-     dtostrf( fYAccel, 4, 6, strYAccel);
+     dtostrf( fYAccel, 4, 4, strYAccel);
      fZAccel = a.acceleration.z;
-     dtostrf( fZAccel, 4, 6, strZAccel);
+     dtostrf( fZAccel, 4, 4, strZAccel);
      fXGyro = g.gyro.x;
-     dtostrf( fXGyro, 4, 6, strXGyro);
+     dtostrf( fXGyro, 4, 4, strXGyro);
      fYGyro = g.gyro.y;
-     dtostrf( fYGyro, 4, 6, strYGyro);
+     dtostrf( fYGyro, 4, 4, strYGyro);
      fZGyro = g.gyro.z;
-     dtostrf( fZGyro, 4, 6, strZGyro);
+     dtostrf( fZGyro, 4, 4, strZGyro);
      fTemperature = temp.temperature;
-     dtostrf( fTemperature, 4, 6, strTemperature);
+     dtostrf( fTemperature, 4, 4, strTemperature);
 
      dtostrf( fLat, 3, 8, strLat);
      dtostrf( fLon, 3, 8, strLon);
