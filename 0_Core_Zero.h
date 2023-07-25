@@ -37,6 +37,14 @@ unsigned long CR0_ulPreviousMicrosCore0;
 unsigned long CR0_ulCurrentMicrosCore0;
 
 unsigned int CR0_uiTxFlags = 0;
+unsigned int CR0_uiRx_EStop = 0;
+unsigned int CR0_uiTxSequenceBuffer[10];
+unsigned int CR0_uiTxSequenceIndex = 0;
+unsigned int CR0_uiTxIndex = 0;
+unsigned int CR0_uiTxPacketIndex = 0;
+unsigned int CR0_uiTxPacketSize = 0;
+
+
 
 void Core_ZeroCode( void * pvParameters );
 
@@ -88,11 +96,24 @@ void Core_ZeroCode( void * pvParameters )
           case 0:
           {
             CR0_uiTxFlags = 0;
+            CR0_uiRx_EStop = 0;
+            CR0_uiTxSequenceIndex = 0;
+            CR0_uiTxIndex = 0;
+            CR0_uiTxSequenceBuffer[CR0_uiTxSequenceIndex] = 0;
+            Serial.println("RX ZERO");
             break;
           }
           case 100://requesting GPS data
           {
+            CR0_uiRx_EStop = 1;
+            CR0_uiTxSequenceBuffer[CR0_uiTxSequenceIndex] = 100;
+            CR0_uiTxSequenceIndex += 1;
+            if(CR0_uiTxSequenceIndex >= 10)
+            {
+              CR0_uiRx_EStop = 10;
+            }
             CR0_uiTxFlags |= 0x01; //Send GPS data
+            Serial.println("RX GPS");
             // if (rx_frame.FIR.B.RTR != CAN_RTR)
             // {
             //  for (int i = 0; i < rx_frame.FIR.B.DLC; i++) 
@@ -105,7 +126,15 @@ void Core_ZeroCode( void * pvParameters )
           }
           case 101:  //requesting IMU data 
           {
+            CR0_uiRx_EStop = 1;
+            CR0_uiTxSequenceBuffer[CR0_uiTxSequenceIndex] = 100;
+            CR0_uiTxSequenceIndex += 1;
+            if(CR0_uiTxSequenceIndex >= 10)
+            {
+              CR0_uiRx_EStop = 10;
+            }
             CR0_uiTxFlags |= 0x02; //Send IMU data
+            Serial.println("RX IMU");
             // if (rx_frame.FIR.B.RTR != CAN_RTR)
             // {
             //  for (int i = 0; i < rx_frame.FIR.B.DLC; i++) 
@@ -123,7 +152,45 @@ void Core_ZeroCode( void * pvParameters )
       CR0_ulCurrentMicrosCore0 = micros();
       if ((CR0_ulCurrentMicrosCore0 - CR0_ulPreviousMicrosCore0) >= CR0_ciMainTimer)
       {
-        
+       if(CR0_uiRx_EStop)
+       {
+         if(CR0_uiTxSequenceIndex)
+         {
+           if(CR0_uiTxPacketIndex == 0)
+           {
+             switch(CR0_uiTxSequenceBuffer[CR0_uiTxIndex])
+             {
+               case 0:  //e stop
+               {
+                 CR0_uiTxPacketSize = 0;
+                 break;
+               }
+               case 100://requesting GPS data
+              {
+                 CR0_uiTxPacketSize = ??;
+                 break;
+              break;
+              }
+              case 101:  //requesting IMU data 
+              {
+                CR0_uiTxPacketSize = ??;
+                 break;
+              break;
+              }
+             }
+             
+           }
+         }
+         if(CR0_uiTxSequenceIndex == CR0_uiTxIndex)
+         {
+           CR0_uiTxSequenceIndex = 0;
+           CR0_uiTxIndex = 0;
+         }
+         CR0_uiTxIndex
+CR0_uiTxPacketIndex = 0;
+unsigned int  = 0;
+
+       } 
         
         
         ESP32Can.CANWriteFrame(&tx_frame);
