@@ -13,12 +13,6 @@
 TwoWire I2Cax = TwoWire(0);
 
 
-//CAN Variables
-CAN_device_t CAN_cfg;               // CAN Config
-unsigned long previousMillis = 0;   // will store last time a CAN Message was send
-const int interval = 1000;          // interval at which send CAN Messages (milliseconds)
-const int rx_queue_size = 10;       // Receive Queue size
-
 
 //GPS/Acellreometers
 static const int RXPin = 23, TXPin = 19;
@@ -34,6 +28,47 @@ EspSoftwareSerial::UART ss;
 
 Adafruit_MPU6050 mpu;
 
+
+//If bits are one then updated bit 0 is location,
+unsigned int uiTime;
+unsigned int uiDate;
+unsigned int uiSatNumber;
+unsigned int uiValidGPSData;
+
+float fLat;
+float fLon;
+float fMPS;
+float fDegree;
+float fAlt;
+float fHDOP;
+
+float fXAccel;
+float fYAccel;
+float fZAccel;
+float fXGyro;
+float fYGyro;
+float fZGyro;
+float fTemperature;
+
+unsigned int uiInByte;
+char strGPS[200];
+char strIMU[200];
+
+char strLat[15];
+char strLon[15];
+char strMPS[6];
+char strDegree[6];
+char strAlt[10];
+char strHDOP[6];
+
+char strXAccel[10];
+char strYAccel[10];
+char strZAccel[10];
+char strXGyro[10];
+char strYGyro[10];
+char strZGyro[10];
+char strTemperature[10];
+
 void setup()
 {
 
@@ -41,6 +76,7 @@ void setup()
 
   Core_ZEROInit();
 
+  uiValidGPSData = 0;
 
   ss.begin(BAUD_RATE, EspSoftwareSerial::SWSERIAL_8N1, RXPin, TXPin);
   
@@ -125,42 +161,7 @@ void setup()
     
 }
 
-//If bits are one then updated bit 0 is location,
-unsigned int uiTime;
-unsigned int uiDate;
-unsigned int uiSatNumber;
 
-float fLat;
-float fLon;
-float fMPS;
-float fDegree;
-float fAlt;
-float fHDOP;
-
-float fXAccel;
-float fYAccel;
-float fZAccel;
-float fXGyro;
-float fYGyro;
-float fZGyro;
-float fTemperature;
-
-unsigned int uiInByte;
-char strGPS[200];
-char strValid[8]; 
-char strLat[15];
-char strLon[15];
-char strMPS[6];
-char strDegree[6];
-char strAlt[10];
-char strHDOP[6];
-char strXAccel[10];
-char strYAccel[10];
-char strZAccel[10];
-char strXGyro[10];
-char strYGyro[10];
-char strZGyro[10];
-char strTemperature[10];
 
 
 void loop()
@@ -185,12 +186,11 @@ void loop()
   {
     if(gps.time.value() != 0)
     {
-      strValid[0] = '1';
+      uiValidGPSData |= 0x0001;
     }
     else
     {
-      strValid[0] = '0';
-
+      uiValidGPSData &= 0xFFFE;
     }
     uiTime = gps.time.value();
     
@@ -200,13 +200,12 @@ void loop()
   if (gps.location.isValid())
   {
     if((gps.location.lat() != 0.0)&&(gps.location.lng()))
-    {
-      strValid[1] = '1';
-      
-    }    
+     {
+      uiValidGPSData |= 0x0002;
+    }
     else
     {
-      strValid[1] = '0';
+      uiValidGPSData &= 0xFFFD;
     }
     fLat = gps.location.lat();
     fLon = gps.location.lng();
@@ -215,21 +214,26 @@ void loop()
   if (gps.date.isValid())
   {
     if(gps.date.value() != 0)
-    {
-      strValid[2] = '1';
-    }    
+     {
+      uiValidGPSData |= 0x0004;
+    }
     else
     {
-      strValid[2] = '0';
+      uiValidGPSData &= 0xFFFB;
     }
     uiDate = gps.date.value();
   }
   
   if (gps.speed.isValid())
   {
-    strValid[3] = '?';
+    uiValidGPSData |= 0x0040;
     fMPS = gps.speed.mps();
   }
+  else
+  {
+    uiValidGPSData &= 0xFFBF;
+  }
+  
   
   if (gps.course.isValid())
   {
@@ -247,11 +251,11 @@ void loop()
   {
     if(gps.satellites.value() != 0)
     {
-     strValid[6] = '1';
-    }    
+      uiValidGPSData |= 0x0040;
+    }
     else
     {
-      strValid[6] = '0';
+      uiValidGPSData &= 0xFFBF;
     }
     uiSatNumber = gps.satellites.value();
   
@@ -260,12 +264,12 @@ void loop()
   if (gps.hdop.isValid())
   {
     if(gps.hdop.hdop() != 99.99)
-    {
-     strValid[7] = '1';
-    }    
+     {
+      uiValidGPSData |= 0x0080;
+    }
     else
     {
-     strValid[7] = '0';
+      uiValidGPSData &= 0xFF7F;
     }
     fHDOP = gps.hdop.hdop();
   }

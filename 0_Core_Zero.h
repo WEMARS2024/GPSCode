@@ -36,9 +36,9 @@ uint32_t CR0_u32Last;
 unsigned long CR0_ulPreviousMicrosCore0;
 unsigned long CR0_ulCurrentMicrosCore0;
 
-unsigned int CR0_uiTxFlags = 0;
+
 unsigned int CR0_uiRx_EStop = 0;
-unsigned int CR0_uiTxSequenceBuffer[10];
+unsigned int CR0_uiTxSequenceBuffer[11];
 unsigned int CR0_uiTxSequenceIndex = 0;
 unsigned int CR0_uiTxIndex = 0;
 unsigned int CR0_uiTxPacketIndex = 0;
@@ -95,7 +95,7 @@ void Core_ZeroCode( void * pvParameters )
         {
           case 0:
           {
-            CR0_uiTxFlags = 0;
+            
             CR0_uiRx_EStop = 0;
             CR0_uiTxSequenceIndex = 0;
             CR0_uiTxIndex = 0;
@@ -106,13 +106,19 @@ void Core_ZeroCode( void * pvParameters )
           case 100://requesting GPS data
           {
             CR0_uiRx_EStop = 1;
-            CR0_uiTxSequenceBuffer[CR0_uiTxSequenceIndex] = 100;
             CR0_uiTxSequenceIndex += 1;
-            if(CR0_uiTxSequenceIndex >= 10)
+            CR0_uiTxSequenceBuffer[CR0_uiTxSequenceIndex] = 100;
+            
+            if(CR0_uiTxSequenceIndex == 10)
+            {
+              CR0_uiTxSequenceIndex = 1;
+                                                    
+            }
+            if(CR0_uiTxSequenceIndex == CR0_uiTxIndex)
             {
               CR0_uiRx_EStop = 10;
             }
-            CR0_uiTxFlags |= 0x01; //Send GPS data
+         
             Serial.println("RX GPS");
             // if (rx_frame.FIR.B.RTR != CAN_RTR)
             // {
@@ -133,7 +139,7 @@ void Core_ZeroCode( void * pvParameters )
             {
               CR0_uiRx_EStop = 10;
             }
-            CR0_uiTxFlags |= 0x02; //Send IMU data
+            
             Serial.println("RX IMU");
             // if (rx_frame.FIR.B.RTR != CAN_RTR)
             // {
@@ -152,11 +158,11 @@ void Core_ZeroCode( void * pvParameters )
       CR0_ulCurrentMicrosCore0 = micros();
       if ((CR0_ulCurrentMicrosCore0 - CR0_ulPreviousMicrosCore0) >= CR0_ciMainTimer)
       {
-       if(CR0_uiRx_EStop)
+       if(CR0_uiRx_EStop) // no e stop
        {
-         if(CR0_uiTxSequenceIndex)
+         if(CR0_uiTxIndex != CR0_uiTxSequenceIndex) // CAN Sequence to send, therefore something to send
          {
-           if(CR0_uiTxPacketIndex == 0)
+           if(CR0_uiTxPacketIndex == 0)  //start of Tx packets to send, load packet lenght
            {
              switch(CR0_uiTxSequenceBuffer[CR0_uiTxIndex])
              {
