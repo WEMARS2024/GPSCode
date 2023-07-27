@@ -339,3 +339,29 @@ void loop()
   }
  
 }
+
+unsigned int Get_GPS_Data_Size()
+{
+  if(strGPS[0] == '0')
+  {
+    return(0);
+  }
+  else
+  {
+    strcpy(strCAN_TxGPS,strGPS);
+    return(sizeof(strGPS));
+  }
+}
+
+unsigned int Get_IMU_Data_Size()
+{
+  if(strIMU[0] == '0')
+  {
+    return(0);
+  }
+  else
+  {
+    strcpy(strCAN_TxGPS,strIMU);
+    return(sizeof(strIMU));
+  }
+}

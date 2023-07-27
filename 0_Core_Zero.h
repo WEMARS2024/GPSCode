@@ -46,8 +46,12 @@ unsigned int CR0_uiTxIndex = 0;
 unsigned int CR0_uiTxPacketIndex = 0;
 unsigned int CR0_uiTxPacketSize = 0;
 
+unsigned int uiTxID = 0;
+
 char strCAN_TxGPS[200];
 char strCAN_TxIMU[200];
+
+float fTempByteCount = 0.0;
 
 void Core_ZeroCode( void * pvParameters );
 
@@ -177,8 +181,20 @@ void Core_ZeroCode( void * pvParameters )
                }
                case 100://requesting GPS data
               {
-                if(Valid_GPS())
-                 CR0_uiTxPacketSize = ??;
+                CR0_uiTxPacketSize = Get_GPS_Data_Size();
+                if(CR0_uiTxPacketSize == 0)
+                {
+                  CR0_uiTxPacketSize = 1;
+                  uiTxID = 190; //GPS data invalid
+                }
+                else
+                {
+                  fTempByteCount = CR0_uiTxPacketSize + 1;
+                  CR0_uiTxPacketSize = Ceiling(fTempByteCount/8); //take number of bytes to send add one for packet size then divide byte count by max number of bytes to send
+                  uiTxID = 110;//start of GPS data packets,  the first byte = number of packets 
+                  
+                }
+                uiTxID
                  break;
               break;
               }
@@ -234,5 +250,7 @@ void LoadTxBuffer()
   tx_frame.data.u8[7] = 0x010;
 
 }
+
+
 
 #endif
