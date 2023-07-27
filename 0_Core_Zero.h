@@ -25,9 +25,11 @@ const int rx_queue_size = 10;       // Receive Queue size
 
 TaskHandle_t Core_Zero;
 
-const int CR0_ciMainTimer =  10000;
+extern char strGPS[200];
+extern char strIMU[200];
 
-unsigned char CR0_ucMainTimerCaseCore0;
+const int CR0_ciCANTimer =  10000;
+
 
 uint32_t CR0_u32Now;  //for timing testing
 uint32_t CR0_u32Last;
@@ -44,7 +46,8 @@ unsigned int CR0_uiTxIndex = 0;
 unsigned int CR0_uiTxPacketIndex = 0;
 unsigned int CR0_uiTxPacketSize = 0;
 
-
+char strCAN_TxGPS[200];
+char strCAN_TxIMU[200];
 
 void Core_ZeroCode( void * pvParameters );
 
@@ -156,8 +159,9 @@ void Core_ZeroCode( void * pvParameters )
       
       // Send CAN Message
       CR0_ulCurrentMicrosCore0 = micros();
-      if ((CR0_ulCurrentMicrosCore0 - CR0_ulPreviousMicrosCore0) >= CR0_ciMainTimer)
+      if ((CR0_ulCurrentMicrosCore0 - CR0_ulPreviousMicrosCore0) >= CR0_ciCANTimer)
       {
+        CR0_ulPreviousMicrosCore0 = CR0_ulCurrentMicrosCore0;
        if(CR0_uiRx_EStop) // no e stop
        {
          if(CR0_uiTxIndex != CR0_uiTxSequenceIndex) // CAN Sequence to send, therefore something to send
@@ -173,6 +177,7 @@ void Core_ZeroCode( void * pvParameters )
                }
                case 100://requesting GPS data
               {
+                if(Valid_GPS())
                  CR0_uiTxPacketSize = ??;
                  break;
               break;

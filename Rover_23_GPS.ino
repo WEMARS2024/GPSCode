@@ -35,20 +35,20 @@ unsigned int uiDate;
 unsigned int uiSatNumber;
 unsigned int uiValidGPSData;
 
-float fLat;
-float fLon;
-float fMPS;
-float fDegree;
-float fAlt;
-float fHDOP;
+float fLat= 0.0;
+float fLon = 0.0;
+float fMPS = 0.0;
+float fDegree = 0.0;
+float fAlt = 0.0;
+float fHDOP = 99.00;
 
-float fXAccel;
-float fYAccel;
-float fZAccel;
-float fXGyro;
-float fYGyro;
-float fZGyro;
-float fTemperature;
+float fXAccel = 0.0;
+float fYAccel = 0.0;
+float fZAccel = 0.0;
+float fXGyro = 0.0;
+float fYGyro = 0.0;
+float fZGyro = 0.0;
+float fTemperature = 0.0;
 
 unsigned int uiInByte;
 char strGPS[200];
@@ -68,6 +68,12 @@ char strXGyro[10];
 char strYGyro[10];
 char strZGyro[10];
 char strTemperature[10];
+
+const int ciGPS_IMUTimer =  200;
+
+unsigned long ulPreviousMillis;
+unsigned long ulCurrentMillis;
+
 
 void setup()
 {
@@ -150,14 +156,6 @@ void setup()
 
   Serial.println("");
   delay(100);
-
-
-  CAN_cfg.speed = CAN_SPEED_125KBPS;
-  CAN_cfg.tx_pin_id = GPIO_NUM_21;
-  CAN_cfg.rx_pin_id = GPIO_NUM_22;
-  CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
-  // Init CAN Module
-  ESP32Can.CANInit();
     
 }
 
@@ -187,41 +185,44 @@ void loop()
     if(gps.time.value() != 0)
     {
       uiValidGPSData |= 0x0001;
+      uiTime = gps.time.value();
     }
     else
     {
       uiValidGPSData &= 0xFFFE;
     }
-    uiTime = gps.time.value();
+    
     
   }
   
 
   if (gps.location.isValid())
   {
-    if((gps.location.lat() != 0.0)&&(gps.location.lng()))
+    if((gps.location.lat() != 0.0)&&(gps.location.lng()) != 0.0)
      {
       uiValidGPSData |= 0x0002;
+      fLat = gps.location.lat();
+      fLon = gps.location.lng();
     }
     else
     {
       uiValidGPSData &= 0xFFFD;
     }
-    fLat = gps.location.lat();
-    fLon = gps.location.lng();
+    
   }
   
   if (gps.date.isValid())
   {
     if(gps.date.value() != 0)
-     {
+    {
       uiValidGPSData |= 0x0004;
+      uiDate = gps.date.value();
     }
     else
     {
       uiValidGPSData &= 0xFFFB;
     }
-    uiDate = gps.date.value();
+    
   }
   
   if (gps.speed.isValid())
@@ -237,28 +238,38 @@ void loop()
   
   if (gps.course.isValid())
   {
-    strValid[4] = '?';
+    uiValidGPSData |= 0x0010;
     fDegree = gps.course.deg();
   }
+  else
+  {
+    uiValidGPSData &= 0xFFEF;
+  }
+ 
   
   if (gps.altitude.isValid())
   {
-    strValid[5] = '?';
+    uiValidGPSData |= 0x0020;
     fAlt = gps.altitude.meters();
   }
+  else
+  {
+    uiValidGPSData &= 0xFFDF;
+  }
+  
   
   if (gps.satellites.isValid())
   {
     if(gps.satellites.value() != 0)
     {
       uiValidGPSData |= 0x0040;
+      uiSatNumber = gps.satellites.value();
     }
     else
     {
       uiValidGPSData &= 0xFFBF;
     }
-    uiSatNumber = gps.satellites.value();
-  
+   
   }
   
   if (gps.hdop.isValid())
@@ -266,20 +277,32 @@ void loop()
     if(gps.hdop.hdop() != 99.99)
      {
       uiValidGPSData |= 0x0080;
+      fHDOP = gps.hdop.hdop();
     }
     else
     {
       uiValidGPSData &= 0xFF7F;
     }
-    fHDOP = gps.hdop.hdop();
+    
   }
   
   if (gps.charsProcessed() < 10)
-      Serial.println(F("WARNING: No GPS data.  Check wiring."));
-
+  {
+    Serial.println(F("WARNING: No GPS data.  Check wiring."));
+    uiValidGPSData = 0x0000;
+  }
 
   if(uiInByte == 'g')
   {
+    Serial.println(strGPS);
+    Serial.println(strIMU);
+  }
+
+  ulCurrentMillis = millis();
+  if ((ulCurrentMillis - ulPreviousMillis) >= ciGPS_IMUTimer)
+  {
+    ulPreviousMillis = ulCurrentMillis;
+    strcpy(strIMU,"0");
      fXAccel = a.acceleration.x;
      dtostrf( fXAccel, 4, 4, strXAccel);
      fYAccel = a.acceleration.y;
@@ -294,17 +317,25 @@ void loop()
      dtostrf( fZGyro, 4, 4, strZGyro);
      fTemperature = temp.temperature;
      dtostrf( fTemperature, 4, 4, strTemperature);
+     sprintf(strIMU,"1,%s,%s,%s,%s,%s,%s,%s\n",strXAccel,strYAccel,strZAccel,strXGyro,strYGyro,strZGyro,strTemperature);
 
-     dtostrf( fLat, 3, 8, strLat);
-     dtostrf( fLon, 3, 8, strLon);
-     dtostrf( fMPS, 3, 2, strMPS);
-     dtostrf( fDegree, 3, 2, strDegree);
-     dtostrf( fAlt, 5, 2, strAlt);
-     dtostrf( fHDOP, 2, 2, strHDOP);
+    if(uiValidGPSData == 0x007F)
+    {
+      strcpy(strGPS,"0");
+      dtostrf( fLat, 3, 8, strLat);
+      dtostrf( fLon, 3, 8, strLon);
+      dtostrf( fMPS, 3, 2, strMPS);
+      dtostrf( fDegree, 3, 2, strDegree);
+      dtostrf( fAlt, 5, 2, strAlt);
+      dtostrf( fHDOP, 2, 2, strHDOP);
 
-    sprintf(strGPS,"%s,%i,%s,%s,%i,%s,%s,%s,%i,%s:%s,%s,%s,%s,%s,%s,%s\n",strValid,uiTime,strLat,strLon,uiDate,strMPS,strDegree,strAlt,uiSatNumber,strHDOP,strXAccel,strYAccel,strZAccel,strXGyro,strYGyro,strZGyro,strTemperature);
-    Serial.print(strGPS);
-    strcpy(strGPS,"");
+      sprintf(strGPS,"%i,%i,%s,%s,%i,%s,%s,%s,%i,%s\n",strValid,uiTime,strLat,strLon,uiDate,strMPS,strDegree,strAlt,uiSatNumber,strHDOP);
+    }
+    else
+    {
+      strcpy(strGPS,"0");
+    }  
+    
   }
  
 }
