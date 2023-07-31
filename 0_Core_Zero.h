@@ -54,7 +54,7 @@ char strCAN_TxIMU[200];
 float fTempByteCount = 0.0;
 
 void Core_ZeroCode( void * pvParameters );
-
+void LoadTxBuffer(unsigned int uiId, unsigned int uiFirstByte);
 
 void Core_ZEROInit()
 {
@@ -172,6 +172,7 @@ void Core_ZeroCode( void * pvParameters )
          {
            if(CR0_uiTxPacketIndex == 0)  //start of Tx packets to send, load packet lenght
            {
+             CR0_uiTxPacketIndex = 1;
              switch(CR0_uiTxSequenceBuffer[CR0_uiTxIndex])
              {
                case 0:  //e stop
@@ -184,19 +185,22 @@ void Core_ZeroCode( void * pvParameters )
                 CR0_uiTxPacketSize = Get_GPS_Data_Size();
                 if(CR0_uiTxPacketSize == 0)
                 {
-                  CR0_uiTxPacketSize = 1;
+                  
                   uiTxID = 190; //GPS data invalid
+                  LoadTxBuffer(uiTxID, CR0_uiTxPacketSize)
+                  ESP32Can.CANWriteFrame(&tx_frame);
+
                 }
                 else
                 {
                   fTempByteCount = CR0_uiTxPacketSize + 1;
                   CR0_uiTxPacketSize = Ceiling(fTempByteCount/8); //take number of bytes to send add one for packet size then divide byte count by max number of bytes to send
                   uiTxID = 110;//start of GPS data packets,  the first byte = number of packets 
-                  
+                  LoadTxBuffer(uiTxID, CR0_uiTxPacketSize)
+                  ESP32Can.CANWriteFrame(&tx_frame);
                 }
-                uiTxID
-                 break;
-              break;
+                
+                break;
               }
               case 101:  //requesting IMU data 
               {
@@ -205,29 +209,27 @@ void Core_ZeroCode( void * pvParameters )
               break;
               }
              }
-             
-           }
-         }
-         if(CR0_uiTxSequenceIndex == CR0_uiTxIndex)
-         {
+            }
+            else
+            {
+              
+              LoadTxBuffer(unsigned int uiId, unsigned int uiFirstByte)
+              ESP32Can.CANWriteFrame(&tx_frame);
+              // asm volatile("esync; rsr %0,ccount":"=a" (CR0_u32Last)); // @ 240mHz clock each tick is ~4nS  
+            
+             //  asm volatile("esync; rsr %0,ccount":"=a" (CR0_u32Now));    
+            }
+          }
+          if(CR0_uiTxSequenceIndex == CR0_uiTxIndex)
+          {
            CR0_uiTxSequenceIndex = 0;
            CR0_uiTxIndex = 0;
-         }
-         CR0_uiTxIndex
-CR0_uiTxPacketIndex = 0;
-unsigned int  = 0;
-
-       } 
-        
-        
-        ESP32Can.CANWriteFrame(&tx_frame);
-       
+          }
+        } 
       }
        
      
-           // asm volatile("esync; rsr %0,ccount":"=a" (CR0_u32Last)); // @ 240mHz clock each tick is ~4nS  
-            
-          //  asm volatile("esync; rsr %0,ccount":"=a" (CR0_u32Now));    
+           
            
           
         
@@ -235,11 +237,33 @@ unsigned int  = 0;
   }
 }
 
-void LoadTxBuffer()
+void LoadTxBuffer(unsigned int uiId, unsigned int uiPacketCount)
 {
   tx_frame.FIR.B.FF = CAN_frame_std;
-  tx_frame.MsgID = uiID;
+  tx_frame.MsgID = uiId;
   tx_frame.FIR.B.DLC = 8;
+  if(uiPacketCount == 0)
+  {
+    tx_frame.FIR.B.DLC = 1;
+    tx_frame.data.u8[0] = 0;
+  }
+  else
+  {
+    if(uiId <= 150)//GPS data
+    {
+       strncpy(dest, src + beginIndex, endIndex - beginIndex);
+       alidated that dest is large enough.
+endIndex is greater than beginIndex
+beginIndex is less than strlen(src)
+endIndex is less than strlen(src)
+    }
+    else  //IMU data
+    {
+
+    }
+  }
+  
+  
   tx_frame.data.u8[0] = 0x09;
   tx_frame.data.u8[1] = 0x0A;
   tx_frame.data.u8[2] = 0x0B;
