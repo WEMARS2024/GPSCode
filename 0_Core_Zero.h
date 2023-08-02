@@ -44,7 +44,7 @@ unsigned int CR0_uiTxSequenceBuffer[11];
 unsigned int CR0_uiTxSequenceIndex = 0;
 unsigned int CR0_uiTxIndex = 0;
 unsigned int CR0_uiTxPacketIndex = 0;
-unsigned int CR0_uiTxPacketSize = 0;
+unsigned int CR0_uiTxPacketCount = 0;
 
 unsigned int uiTxID = 0;
 
@@ -54,7 +54,7 @@ char strCAN_TxIMU[200];
 float fTempByteCount = 0.0;
 
 void Core_ZeroCode( void * pvParameters );
-void LoadTxBuffer(unsigned int uiId, unsigned int uiFirstByte);
+void void LoadTxBuffer(unsigned int uiId, unsigned int uiPacketCount,unsigned  int uiPacketIndx);
 
 void Core_ZEROInit()
 {
@@ -177,26 +177,26 @@ void Core_ZeroCode( void * pvParameters )
              {
                case 0:  //e stop
                {
-                 CR0_uiTxPacketSize = 0;
+                 CR0_uiTxPacketCount = 0;
                  break;
                }
                case 100://requesting GPS data
               {
-                CR0_uiTxPacketSize = Get_GPS_Data_Size();
-                if(CR0_uiTxPacketSize == 0)
+                CR0_uiTxPacketCount = Get_GPS_Data_Size();
+                if(CR0_uiTxPacketCount == 0)
                 {
                   
                   uiTxID = 190; //GPS data invalid
-                  LoadTxBuffer(uiTxID, CR0_uiTxPacketSize)
+                  LoadTxBuffer(uiTxID, CR0_uiTxPacketCount,CR0_uiTxPacketIndex)
                   ESP32Can.CANWriteFrame(&tx_frame);
 
                 }
                 else
                 {
-                  fTempByteCount = CR0_uiTxPacketSize + 1;
-                  CR0_uiTxPacketSize = Ceiling(fTempByteCount/8); //take number of bytes to send add one for packet size then divide byte count by max number of bytes to send
+                  fTempByteCount = CR0_uiTxPacketCount + 1;
+                  CR0_uiTxPacketCount = Ceiling(fTempByteCount/8); //take number of bytes to send add one for packet size then divide byte count by max number of bytes to send
                   uiTxID = 110;//start of GPS data packets,  the first byte = number of packets 
-                  LoadTxBuffer(uiTxID, CR0_uiTxPacketSize)
+                  LoadTxBuffer(uiTxID, CR0_uiTxPacketCount,CR0_uiTxPacketIndex)
                   ESP32Can.CANWriteFrame(&tx_frame);
                 }
                 
@@ -204,7 +204,7 @@ void Core_ZeroCode( void * pvParameters )
               }
               case 101:  //requesting IMU data 
               {
-                CR0_uiTxPacketSize = ??;
+                CR0_uiTxPacketCount = ??;
                  break;
               break;
               }
@@ -213,7 +213,7 @@ void Core_ZeroCode( void * pvParameters )
             else
             {
               
-              LoadTxBuffer(unsigned int uiId, unsigned int uiFirstByte)
+              LoadTxBuffer(uiTxID, CR0_uiTxPacketCount,CR0_uiTxPacketIndex)
               ESP32Can.CANWriteFrame(&tx_frame);
               // asm volatile("esync; rsr %0,ccount":"=a" (CR0_u32Last)); // @ 240mHz clock each tick is ~4nS  
             
@@ -237,8 +237,10 @@ void Core_ZeroCode( void * pvParameters )
   }
 }
 
-void LoadTxBuffer(unsigned int uiId, unsigned int uiPacketCount)
+unsigned int  LoadTxBuffer(unsigned int uiId, unsigned int uiPacketCount,unsigned  int uiPacketIndx);
 {
+  unsigned int uiIndexThroughGPSSting;
+
   tx_frame.FIR.B.FF = CAN_frame_std;
   tx_frame.MsgID = uiId;
   tx_frame.FIR.B.DLC = 8;
@@ -251,11 +253,23 @@ void LoadTxBuffer(unsigned int uiId, unsigned int uiPacketCount)
   {
     if(uiId <= 150)//GPS data
     {
-       strncpy(dest, src + beginIndex, endIndex - beginIndex);
-       alidated that dest is large enough.
-endIndex is greater than beginIndex
-beginIndex is less than strlen(src)
-endIndex is less than strlen(src)
+      if(uiPacketIndx == 1)
+      {
+        tx_frame.data.u8[0] = uiPacketCount;
+        for(uiIndexThroughGPSSting = 0;uiIndexThroughGPSSting < 7;uiIndexThroughGPSSting++)
+        {
+          tx_frame.data.u8[uiIndexThroughGPSSting + 1] = strCAN_TxGPS[uiIndexThroughGPSSting];
+        }
+       
+      }
+      else
+      {
+        for(uiIndexThroughGPSSting = 0;uiIndexThroughGPSSting < 8;uiIndexThroughGPSSting++)
+        {
+          tx_frame.data.u8[uiIndexThroughGPSSting] = strCAN_TxGPS[uiIndexThroughGPSSting];
+        }
+      }
+     
     }
     else  //IMU data
     {
