@@ -7,6 +7,7 @@
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
+#include <math.h>
 
 #define I2C_SDA 5
 #define I2C_SCL 18
@@ -329,7 +330,7 @@ void loop()
       dtostrf( fAlt, 5, 2, strAlt);
       dtostrf( fHDOP, 2, 2, strHDOP);
 
-      sprintf(strGPS,"%i,%i,%s,%s,%i,%s,%s,%s,%i,%s\n",strValid,uiTime,strLat,strLon,uiDate,strMPS,strDegree,strAlt,uiSatNumber,strHDOP);
+      sprintf(strGPS,"1,%i,%s,%s,%i,%s,%s,%s,%i,%s\n",uiTime,strLat,strLon,uiDate,strMPS,strDegree,strAlt,uiSatNumber,strHDOP);
     }
     else
     {

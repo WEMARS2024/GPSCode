@@ -53,8 +53,9 @@ char strCAN_TxIMU[200];
 
 float fTempByteCount = 0.0;
 
+extern unsigned int Get_GPS_Data_Size();
 void Core_ZeroCode( void * pvParameters );
-void void LoadTxBuffer(unsigned int uiId, unsigned int uiPacketCount,unsigned  int uiPacketIndx);
+unsigned int LoadTxBuffer(unsigned int uiId, unsigned int uiPacketCount,unsigned  int uiPacketIndx);
 
 void Core_ZEROInit()
 {
@@ -186,17 +187,17 @@ void Core_ZeroCode( void * pvParameters )
                 if(CR0_uiTxPacketCount == 0)
                 {
                   
-                  uiTxID = 190; //GPS data invalid
-                  LoadTxBuffer(uiTxID, CR0_uiTxPacketCount,CR0_uiTxPacketIndex)
+                  uiTxID = 195; //GPS data invalid
+                  CR0_uiTxPacketIndex = LoadTxBuffer(uiTxID, CR0_uiTxPacketCount,CR0_uiTxPacketIndex);
                   ESP32Can.CANWriteFrame(&tx_frame);
 
                 }
                 else
                 {
                   fTempByteCount = CR0_uiTxPacketCount + 1;
-                  CR0_uiTxPacketCount = Ceiling(fTempByteCount/8); //take number of bytes to send add one for packet size then divide byte count by max number of bytes to send
+                  CR0_uiTxPacketCount = ceil(fTempByteCount/8); //take number of bytes to send add one for packet size then divide byte count by max number of bytes to send
                   uiTxID = 110;//start of GPS data packets,  the first byte = number of packets 
-                  LoadTxBuffer(uiTxID, CR0_uiTxPacketCount,CR0_uiTxPacketIndex)
+                  CR0_uiTxPacketIndex = LoadTxBuffer(uiTxID, CR0_uiTxPacketCount,CR0_uiTxPacketIndex);
                   ESP32Can.CANWriteFrame(&tx_frame);
                 }
                 
@@ -204,8 +205,23 @@ void Core_ZeroCode( void * pvParameters )
               }
               case 101:  //requesting IMU data 
               {
-                CR0_uiTxPacketCount = ??;
-                 break;
+                CR0_uiTxPacketCount = Get_GPS_Data_Size();
+                if(CR0_uiTxPacketCount == 0)
+                {
+                  
+                  uiTxID = 196; //IMU data invalid
+                  CR0_uiTxPacketIndex = LoadTxBuffer(uiTxID, CR0_uiTxPacketCount,CR0_uiTxPacketIndex);
+                  ESP32Can.CANWriteFrame(&tx_frame);
+
+                }
+                else
+                {
+                  fTempByteCount = CR0_uiTxPacketCount + 1;
+                  CR0_uiTxPacketCount = ceil(fTempByteCount/8); //take number of bytes to send add one for packet size then divide byte count by max number of bytes to send
+                  uiTxID = 150;//start of I<U data packets,  the first byte = number of packets 
+                  CR0_uiTxPacketIndex = LoadTxBuffer(uiTxID, CR0_uiTxPacketCount,CR0_uiTxPacketIndex);
+                  ESP32Can.CANWriteFrame(&tx_frame);
+                }
               break;
               }
              }
@@ -213,11 +229,17 @@ void Core_ZeroCode( void * pvParameters )
             else
             {
               
-              LoadTxBuffer(uiTxID, CR0_uiTxPacketCount,CR0_uiTxPacketIndex)
+              CR0_uiTxPacketIndex = LoadTxBuffer(uiTxID, CR0_uiTxPacketCount,CR0_uiTxPacketIndex);
               ESP32Can.CANWriteFrame(&tx_frame);
-              // asm volatile("esync; rsr %0,ccount":"=a" (CR0_u32Last)); // @ 240mHz clock each tick is ~4nS  
-            
-             //  asm volatile("esync; rsr %0,ccount":"=a" (CR0_u32Now));    
+              uiTxID += 1;
+              if(CR0_uiTxPacketIndex == CR0_uiTxPacketCount)
+              {
+                  CR0_uiTxIndex += 1;
+                  if(CR0_uiTxIndex > 10)
+                  {
+                    CR0_uiTxIndex = 0;
+                  }
+              }
             }
           }
           if(CR0_uiTxSequenceIndex == CR0_uiTxIndex)
@@ -237,7 +259,7 @@ void Core_ZeroCode( void * pvParameters )
   }
 }
 
-unsigned int  LoadTxBuffer(unsigned int uiId, unsigned int uiPacketCount,unsigned  int uiPacketIndx);
+unsigned int LoadTxBuffer(unsigned int uiId, unsigned int uiPacketCount,unsigned  int uiPacketIndx)
 {
   unsigned int uiIndexThroughGPSSting;
 
@@ -248,19 +270,20 @@ unsigned int  LoadTxBuffer(unsigned int uiId, unsigned int uiPacketCount,unsigne
   {
     tx_frame.FIR.B.DLC = 1;
     tx_frame.data.u8[0] = 0;
+    return(0);
   }
   else
   {
-    if(uiId <= 150)//GPS data
+    if((uiId >= 110) && (uiId <= 145))//GPS data
     {
       if(uiPacketIndx == 1)
       {
         tx_frame.data.u8[0] = uiPacketCount;
-        for(uiIndexThroughGPSSting = 0;uiIndexThroughGPSSting < 7;uiIndexThroughGPSSting++)
+        for(uiIndexThroughGPSSting = 1;uiIndexThroughGPSSting < 8;uiIndexThroughGPSSting++)
         {
-          tx_frame.data.u8[uiIndexThroughGPSSting + 1] = strCAN_TxGPS[uiIndexThroughGPSSting];
+          tx_frame.data.u8[uiIndexThroughGPSSting] = strCAN_TxGPS[uiIndexThroughGPSSting];
         }
-       
+        return(uiPacketIndx + 1);
       }
       else
       {
@@ -268,24 +291,32 @@ unsigned int  LoadTxBuffer(unsigned int uiId, unsigned int uiPacketCount,unsigne
         {
           tx_frame.data.u8[uiIndexThroughGPSSting] = strCAN_TxGPS[uiIndexThroughGPSSting];
         }
+        return(uiPacketIndx + 1);
       }
      
     }
-    else  //IMU data
+    else if ((uiId >= 150) && (uiId <= 190))  //IMU data
     {
-
+      if(uiPacketIndx == 1)
+      {
+        tx_frame.data.u8[0] = uiPacketCount;
+        for(uiIndexThroughGPSSting = 1;uiIndexThroughGPSSting < 8;uiIndexThroughGPSSting++)
+        {
+          tx_frame.data.u8[uiIndexThroughGPSSting] = strCAN_TxIMU[uiIndexThroughGPSSting];
+        }
+        return(uiPacketIndx + 1);
+      }
+      else
+      {
+        for(uiIndexThroughGPSSting = 0;uiIndexThroughGPSSting < 8;uiIndexThroughGPSSting++)
+        {
+          tx_frame.data.u8[uiIndexThroughGPSSting] = strCAN_TxGPS[uiIndexThroughGPSSting];
+        }
+        return(uiPacketIndx + 1);
+      }
     }
   }
   
-  
-  tx_frame.data.u8[0] = 0x09;
-  tx_frame.data.u8[1] = 0x0A;
-  tx_frame.data.u8[2] = 0x0B;
-  tx_frame.data.u8[3] = 0x0C;
-  tx_frame.data.u8[4] = 0x0D;
-  tx_frame.data.u8[5] = 0x0E;
-  tx_frame.data.u8[6] = 0x0F;
-  tx_frame.data.u8[7] = 0x010;
 
 }
 
