@@ -128,35 +128,27 @@ void Core_ZeroCode( void * pvParameters )
             }
          
             Serial.println("RX GPS");
-            // if (rx_frame.FIR.B.RTR != CAN_RTR)
-            // {
-            //  for (int i = 0; i < rx_frame.FIR.B.DLC; i++) 
-            //   {
-            //     printf("0x%02X ", rx_frame.data.u8[i]);
-            //   }
-            //   printf("\n");
-            // }
+            
           break;
           }
           case 101:  //requesting IMU data 
           {
             CR0_uiRx_EStop = 1;
-            CR0_uiTxSequenceBuffer[CR0_uiTxSequenceIndex] = 100;
             CR0_uiTxSequenceIndex += 1;
-            if(CR0_uiTxSequenceIndex >= 10)
+            CR0_uiTxSequenceBuffer[CR0_uiTxSequenceIndex] = 101;
+            
+            if(CR0_uiTxSequenceIndex == 10)
+            {
+              CR0_uiTxSequenceIndex = 1;
+                                                    
+            }
+            if(CR0_uiTxSequenceIndex == CR0_uiTxIndex)
             {
               CR0_uiRx_EStop = 10;
             }
-            
+         
             Serial.println("RX IMU");
-            // if (rx_frame.FIR.B.RTR != CAN_RTR)
-            // {
-            //  for (int i = 0; i < rx_frame.FIR.B.DLC; i++) 
-            //   {
-            //     printf("0x%02X ", rx_frame.data.u8[i]);
-            //   }
-            //   printf("\n");
-            // }
+            
           break;
           }
         }
